@@ -3,307 +3,1623 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Topo — Explicit logic declarations for program verification and optimization</title>
-  <meta name="description" content="Topo extracts the logical requirements of a program into explicit .topo declarations — auditable, machine-verifiable contracts that enforce correctness and enable aggressive compiler optimizations across C++, Rust, Java, Python, and TypeScript.">
-  <meta property="og:title" content="Topo">
-  <meta property="og:description" content="Explicit logic declarations for program verification and optimization.">
+  <title>Topo — Logic Declarations That Your Compiler Can Enforce</title>
+  <meta name="description" content="Topo extracts the logical requirements of a program into explicit .topo declarations — auditable, machine-verifiable contracts that catch violations at compile time and unlock aggressive optimizations across C++, Rust, Java, Python, and TypeScript.">
+  <meta property="og:title" content="Topo — Logic Declarations That Your Compiler Can Enforce">
+  <meta property="og:description" content="Topo extracts the logical requirements of a program into explicit .topo declarations — auditable, machine-verifiable contracts.">
   <meta property="og:image" content="https://topo-lang.github.io/icon.png">
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary">
   <link rel="icon" type="image/png" href="icon.png">
   <style>
+    /* ═══════════════════════════════════════════════════════════════
+       CSS Custom Properties — Light Mode (default)
+       ═══════════════════════════════════════════════════════════════ */
     :root {
-      --c-accent: #0066FF;
-      --c-accent-hover: #0052CC;
+      --c-brand: #0066FF;
+      --c-brand-hover: #0052CC;
+      --c-brand-glow: rgba(0,102,255,0.12);
+      --c-brand-muted: rgba(0,102,255,0.06);
       --c-bg: #FAFBFC;
       --c-surface: #FFFFFF;
+      --c-surface-raised: #F6F8FA;
       --c-text: #1F2328;
       --c-text-muted: #656D76;
+      --c-text-faint: #8B949E;
       --c-border: #D0D7DE;
-      --max-width: 880px;
+      --c-border-light: #E4E8EC;
+      --c-code-bg: #1A1E2E;
+      --c-code-bg-dark: #151922;
+      --c-code-line: rgba(255,255,255,0.06);
+      --c-success: #1A7F37;
+      --c-error: #CF222E;
+      --c-warn: #9A6700;
+      --c-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+      --c-shadow-lg: 0 8px 24px rgba(0,0,0,0.08);
+      --max-width: 960px;
     }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Dark Mode
+       ═══════════════════════════════════════════════════════════════ */
+    [data-theme="dark"] {
+      --c-brand: #3388FF;
+      --c-brand-hover: #5098FF;
+      --c-brand-glow: rgba(51,136,255,0.18);
+      --c-brand-muted: rgba(51,136,255,0.08);
+      --c-bg: #0D1117;
+      --c-surface: #161B22;
+      --c-surface-raised: #1C2129;
+      --c-text: #E6EDF3;
+      --c-text-muted: #8B949E;
+      --c-text-faint: #656D76;
+      --c-border: #30363D;
+      --c-border-light: #252A33;
+      --c-code-bg: #0B0F17;
+      --c-code-bg-dark: #080C13;
+      --c-success: #3FB950;
+      --c-error: #F85149;
+      --c-warn: #D29922;
+      --c-shadow: 0 1px 3px rgba(0,0,0,0.20);
+      --c-shadow-lg: 0 8px 24px rgba(0,0,0,0.30);
+    }
+
+    /* System preference fallback (when no manual toggle) */
     @media (prefers-color-scheme: dark) {
-      :root {
+      :root:not([data-theme="light"]) {
+        --c-brand: #3388FF;
+        --c-brand-hover: #5098FF;
+        --c-brand-glow: rgba(51,136,255,0.18);
+        --c-brand-muted: rgba(51,136,255,0.08);
         --c-bg: #0D1117;
         --c-surface: #161B22;
+        --c-surface-raised: #1C2129;
         --c-text: #E6EDF3;
         --c-text-muted: #8B949E;
+        --c-text-faint: #656D76;
         --c-border: #30363D;
+        --c-border-light: #252A33;
+        --c-code-bg: #0B0F17;
+        --c-code-bg-dark: #080C13;
+        --c-success: #3FB950;
+        --c-error: #F85149;
+        --c-warn: #D29922;
+        --c-shadow: 0 1px 3px rgba(0,0,0,0.20);
+        --c-shadow-lg: 0 8px 24px rgba(0,0,0,0.30);
       }
     }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Reset & Base
+       ═══════════════════════════════════════════════════════════════ */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
     body {
       font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: var(--c-bg);
+      background: linear-gradient(180deg, var(--c-bg) 0%, var(--c-surface) 50%, var(--c-bg) 100%);
+      background-attachment: fixed;
       color: var(--c-text);
       line-height: 1.6;
       -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
-    a { color: var(--c-accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    a { color: var(--c-brand); text-decoration: none; transition: color 0.15s; }
+    a:hover { color: var(--c-brand-hover); }
+    code { font-family: "SF Mono", "Fira Code", "Cascadia Code", Consolas, "Liberation Mono", monospace; font-size: 0.88em; }
+    img, svg { display: block; }
 
     .container { max-width: var(--max-width); margin: 0 auto; padding: 0 24px; }
 
-    /* Hero */
-    .hero {
-      text-align: center;
-      padding: 80px 24px 64px;
+    /* ═══════════════════════════════════════════════════════════════
+       Navigation
+       ═══════════════════════════════════════════════════════════════ */
+    .nav {
+      background: transparent;
+      border-bottom: 1px solid var(--c-border-light);
     }
-    .hero-icon {
-      width: 80px;
-      height: 80px;
-      margin-bottom: 24px;
+    .nav-inner {
+      max-width: var(--max-width);
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 56px;
     }
-    .hero h1 {
-      font-size: clamp(36px, 6vw, 56px);
+    .nav-brand {
+      font-size: 18px;
       font-weight: 700;
-      letter-spacing: -0.02em;
+      color: var(--c-brand);
+      letter-spacing: -0.01em;
+    }
+    .nav-brand:hover { color: var(--c-brand); opacity: 0.85; }
+    .nav-links { display: flex; align-items: center; gap: 24px; }
+    .nav-links a { color: var(--c-text-muted); font-size: 14px; font-weight: 500; }
+    .nav-links a:hover { color: var(--c-text); text-decoration: none; }
+
+    .theme-toggle {
+      background: none; border: 1px solid var(--c-border); border-radius: 8px;
+      width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--c-text-muted); transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .theme-toggle:hover { color: var(--c-text); border-color: var(--c-text-muted); }
+    .theme-toggle svg { width: 16px; height: 16px; }
+    .theme-toggle .icon-moon { display: none; }
+    [data-theme="dark"] .theme-toggle .icon-sun { display: none; }
+    [data-theme="dark"] .theme-toggle .icon-moon { display: block; }
+
+    .lang-toggle {
+      background: none; border: 1px solid var(--c-border); border-radius: 8px;
+      height: 34px; padding: 0 10px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: var(--c-text-muted);
+      font-size: 13px; font-weight: 600; font-family: inherit;
+      transition: all 0.15s; flex-shrink: 0;
+    }
+    .lang-toggle:hover { color: var(--c-text); border-color: var(--c-text-muted); }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Hero
+       ═══════════════════════════════════════════════════════════════ */
+    .hero {
+      position: relative;
+      text-align: center;
+      padding: 80px 24px 80px;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -200px; left: 50%; transform: translateX(-50%);
+      width: 800px; height: 600px;
+      background: radial-gradient(ellipse at 50% 40%, var(--c-brand-glow), transparent 60%);
+      pointer-events: none;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle, var(--c-border-light) 1px, transparent 1px);
+      background-size: 24px 24px;
+      opacity: 0.4;
+      pointer-events: none;
+      mask-image: radial-gradient(ellipse at 50% 30%, black 30%, transparent 70%);
+      -webkit-mask-image: radial-gradient(ellipse at 50% 30%, black 30%, transparent 70%);
+    }
+    .hero > * { position: relative; z-index: 1; }
+    .hero-name {
+      font-size: clamp(48px, 8vw, 80px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--c-brand);
+      line-height: 1;
+    }
+    .hero-headline {
+      font-size: clamp(20px, 3vw, 28px);
+      font-weight: 400;
       color: var(--c-text);
+      margin-top: 12px;
+      letter-spacing: -0.01em;
+      line-height: 1.25;
     }
-    .hero .tagline {
-      font-size: clamp(16px, 2.5vw, 20px);
+    .hero-desc {
+      font-size: 16px;
       color: var(--c-text-muted);
-      max-width: 640px;
+      max-width: 620px;
       margin: 16px auto 0;
+      line-height: 1.6;
     }
-    .hero-links {
+    .hero-actions {
       margin-top: 28px;
       display: flex;
       gap: 12px;
       justify-content: center;
       flex-wrap: wrap;
     }
+
+    /* Buttons */
     .btn {
-      display: inline-block;
-      padding: 10px 24px;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 15px;
-      transition: background 0.15s;
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 11px 26px; border-radius: 8px;
+      font-weight: 600; font-size: 15px; font-family: inherit;
+      transition: all 0.15s; cursor: pointer;
+      border: none;
     }
-    .btn-primary {
-      background: var(--c-accent);
-      color: #fff;
-    }
-    .btn-primary:hover { background: var(--c-accent-hover); text-decoration: none; }
+    .btn-primary { background: var(--c-brand); color: #fff; }
+    .btn-primary:hover { background: var(--c-brand-hover); text-decoration: none; color: #fff; }
     .btn-secondary {
-      background: var(--c-surface);
-      color: var(--c-text);
+      background: var(--c-surface); color: var(--c-text);
       border: 1px solid var(--c-border);
     }
-    .btn-secondary:hover { background: var(--c-border); text-decoration: none; }
+    .btn-secondary:hover { background: var(--c-surface-raised); text-decoration: none; color: var(--c-text); }
 
-    /* Sections */
-    section { padding: 64px 0; }
-    section:nth-child(even) { background: var(--c-surface); }
-    section h2 {
-      font-size: clamp(24px, 4vw, 32px);
+    /* Hero code window */
+    .hero-code-wrap {
+      margin-top: 40px;
+      max-width: 680px;
+      margin-left: auto; margin-right: auto;
+    }
+    .code-window {
+      background: var(--c-code-bg);
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: var(--c-shadow-lg), 0 0 0 1px rgba(0,0,0,0.05) inset;
+      overflow: hidden;
+      text-align: left;
+    }
+    .code-titlebar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .code-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+    .code-dot.red { background: #FF5F57; }
+    .code-dot.yellow { background: #FEBC2E; }
+    .code-dot.green { background: #28C840; }
+    .code-title {
+      margin-left: 4px; font-size: 12px; color: rgba(255,255,255,0.35);
+      font-family: inherit;
+    }
+    .code-body {
+      padding: 16px;
+      font-family: "SF Mono", "Fira Code", "Cascadia Code", Consolas, "Liberation Mono", monospace;
+      font-size: 13px; line-height: 1.65;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      color: #abb2bf;
+    }
+    .code-line {
+      display: flex; gap: 16px;
+      padding: 1px 0;
+    }
+    .code-ln {
+      color: rgba(255,255,255,0.18);
+      min-width: 24px; text-align: right;
+      user-select: none; -webkit-user-select: none;
+      flex-shrink: 0;
+    }
+    .code-text { white-space: pre; color: #abb2bf; }
+
+    /* Syntax highlighting (One Dark palette on dark bg) */
+    .syn-kw  { color: #c678dd; }  /* keywords */
+    .syn-ty  { color: #e5c07b; }  /* types */
+    .syn-fn  { color: #61afef; }  /* functions */
+    .syn-str { color: #98c379; }  /* strings */
+    .syn-cm  { color: #5c6370; font-style: italic; }  /* comments */
+    .syn-st  { color: #d19a66; }  /* stage<N> */
+    .syn-op  { color: #abb2bf; }  /* operators/punctuation */
+    .syn-nu  { color: #d19a66; }  /* numbers */
+    .syn-an  { color: #e06c75; }  /* annotations/attributes */
+    .syn-grn { color: #7ec87b; }  /* success output */
+    .syn-red { color: #e06c75; }  /* error output */
+    .syn-dim { color: #5c6370; }  /* dimmed text */
+
+    /* Status badges row */
+    .badges {
+      margin-top: 24px;
+      display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 500;
+      color: var(--c-text-muted);
+      background: var(--c-surface);
+      border: 1px solid var(--c-border);
+      border-radius: 20px;
+      padding: 5px 14px;
+    }
+    .badge-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .badge-dot.green { background: var(--c-success); }
+    .badge-dot.blue  { background: var(--c-brand); }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Section Shared
+       ═══════════════════════════════════════════════════════════════ */
+    section {
+      padding: 80px 0;
+      opacity: 1; transform: translateY(0);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    section.reveal { opacity: 1; transform: translateY(0); }
+    section.reveal-hidden { opacity: 0; transform: translateY(20px); }
+
+    .section-label {
+      display: block; text-align: center;
+      font-size: 12px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.06em; color: var(--c-brand); margin-bottom: 8px;
+    }
+    .section-title {
+      font-size: clamp(28px, 4vw, 40px);
       font-weight: 700;
       text-align: center;
-      letter-spacing: -0.01em;
-      margin-bottom: 12px;
+      letter-spacing: -0.02em;
+      line-height: 1.2;
     }
-    .section-intro {
-      text-align: center;
-      color: var(--c-text-muted);
-      max-width: 560px;
-      margin: 0 auto 40px;
-      font-size: 16px;
+    .section-sub {
+      text-align: center; color: var(--c-text-muted);
+      max-width: 600px; margin: 10px auto 0;
+      font-size: 16px; line-height: 1.55;
     }
 
-    /* Value props grid */
+    /* ═══════════════════════════════════════════════════════════════
+       Card Grids (shared)
+       ═══════════════════════════════════════════════════════════════ */
     .grid-3 {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       gap: 20px;
+      margin-top: 40px;
     }
     .card {
-      background: var(--c-surface);
-      border: 1px solid var(--c-border);
-      border-radius: 12px;
-      padding: 24px;
-    }
-    .card .card-icon {
-      font-size: 28px;
-      margin-bottom: 12px;
-    }
-    .card h3 {
-      font-size: 17px;
-      font-weight: 600;
-      margin-bottom: 8px;
-    }
-    .card p {
-      color: var(--c-text-muted);
-      font-size: 14px;
-      line-height: 1.55;
-    }
-
-    /* Declaration types */
-    .decl-type {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 20px;
-    }
-    .decl-card {
+      display: flex; flex-direction: column;
       background: var(--c-surface);
       border: 1px solid var(--c-border);
       border-radius: 12px;
       padding: 28px 24px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: var(--c-shadow);
     }
-    .decl-card .label {
-      display: inline-block;
-      font-size: 12px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--c-accent);
-      margin-bottom: 8px;
+    .card p:last-child { flex: 1; }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--c-shadow-lg);
     }
-    .decl-card h3 { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
-    .decl-card p { color: var(--c-text-muted); font-size: 14px; }
+    .card-strip {
+      width: 32px; height: 3px; border-radius: 2px;
+      margin-bottom: 16px;
+    }
+    .card-strip.blue   { background: #0066FF; }
+    .card-strip.purple { background: #8250DF; }
+    .card-strip.amber  { background: #D29922; }
+    .card-strip.teal   { background: #1A8A7D; }
+    .card h3 {
+      font-size: 18px; font-weight: 600;
+      margin-bottom: 8px; letter-spacing: -0.01em;
+    }
+    .card p {
+      color: var(--c-text-muted); font-size: 14px; line-height: 1.55;
+    }
 
-    /* Languages */
-    .lang-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 16px;
-      justify-content: center;
+    /* ═══════════════════════════════════════════════════════════════
+       Problem Stats
+       ═══════════════════════════════════════════════════════════════ */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-top: 40px;
     }
-    .lang-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
+    .stat-card {
+      text-align: center;
+      padding: 32px 20px;
       background: var(--c-surface);
       border: 1px solid var(--c-border);
-      border-radius: 8px;
-      padding: 12px 20px;
-      font-size: 15px;
-      font-weight: 600;
+      border-radius: 12px;
+      box-shadow: var(--c-shadow);
     }
-    .lang-badge .dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
+    .stat-num {
+      font-size: clamp(36px, 6vw, 56px);
+      font-weight: 800;
+      color: var(--c-brand);
+      letter-spacing: -0.03em;
+      line-height: 1;
+    }
+    .stat-label {
+      margin-top: 8px;
+      font-size: 14px; color: var(--c-text-muted);
+      line-height: 1.4;
+    }
+    .problem-text {
+      max-width: 640px; margin: 28px auto 0;
+      text-align: center; font-size: 15px;
+      color: var(--c-text-muted); line-height: 1.65;
     }
 
-    /* Footer */
+    /* ═══════════════════════════════════════════════════════════════
+       Declaration Type Cards
+       ═══════════════════════════════════════════════════════════════ */
+    .decl-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+      margin-top: 40px;
+    }
+    .decl-card {
+      display: flex; flex-direction: column;
+      background: var(--c-surface);
+      border: 1px solid var(--c-border);
+      border-radius: 12px;
+      padding: 28px 24px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: var(--c-shadow);
+    }
+    .decl-card .decl-snippet { margin-top: auto; }
+    .decl-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--c-shadow-lg);
+    }
+    .decl-card .decl-label {
+      display: inline-block;
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.05em; color: var(--c-brand);
+      margin-bottom: 12px;
+    }
+    .decl-card h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+    .decl-card p { color: var(--c-text-muted); font-size: 14px; line-height: 1.55; margin-bottom: 12px; }
+    .decl-snippet {
+      margin-top: 4px;
+      background: var(--c-code-bg);
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-family: "SF Mono", "Fira Code", "Cascadia Code", Consolas, "Liberation Mono", monospace;
+      font-size: 12px; line-height: 1.55;
+      overflow-x: auto;
+      color: #abb2bf;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       See It in Action (dual panel)
+       ═══════════════════════════════════════════════════════════════ */
+    .action-panels {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 40px;
+    }
+    .action-label {
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.05em; color: var(--c-brand); margin-bottom: 10px;
+      text-align: center;
+    }
+    .terminal-window {
+      background: var(--c-code-bg-dark);
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      overflow: hidden;
+      box-shadow: var(--c-shadow-lg);
+    }
+    .terminal-body {
+      padding: 16px;
+      font-family: "SF Mono", "Fira Code", "Cascadia Code", Consolas, "Liberation Mono", monospace;
+      font-size: 12.5px; line-height: 1.7;
+      overflow-x: auto;
+      color: #abb2bf;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Architecture Diagram
+       ═══════════════════════════════════════════════════════════════ */
+    .arch-diagram {
+      margin-top: 40px;
+      display: flex; flex-direction: column; align-items: center; gap: 0;
+    }
+    .arch-box {
+      text-align: center;
+      padding: 14px 24px;
+      border-radius: 10px;
+      font-size: 14px; font-weight: 600;
+      letter-spacing: -0.01em;
+      border: 1px solid var(--c-border);
+      background: var(--c-surface);
+      box-shadow: var(--c-shadow);
+    }
+    .arch-box.user   { border-style: dashed; color: var(--c-text-muted); }
+    .arch-box.core   { border-color: var(--c-brand); color: var(--c-brand); border-width: 1.5px; }
+    .arch-arrow {
+      width: 0; height: 0;
+      border-left: 7px solid transparent;
+      border-right: 7px solid transparent;
+      border-top: 8px solid var(--c-border);
+      margin: 6px 0;
+    }
+    .arch-row {
+      display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;
+      margin-top: 12px;
+    }
+    .arch-sdk {
+      padding: 10px 18px; border-radius: 8px;
+      font-size: 13px; font-weight: 600;
+      background: var(--c-surface);
+      border: 1px solid var(--c-border);
+      box-shadow: var(--c-shadow);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .arch-sdk .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .arch-backend-row {
+      display: flex; flex-wrap: wrap; gap: 16px; justify-content: center;
+      margin-top: 40px;
+    }
+    .backend-card {
+      background: var(--c-surface);
+      border: 1px solid var(--c-border);
+      border-radius: 12px;
+      padding: 24px;
+      min-width: 200px;
+      flex: 1; max-width: 280px;
+      box-shadow: var(--c-shadow);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .backend-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--c-shadow-lg);
+    }
+    .backend-card h4 { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+    .backend-card .backend-stat {
+      font-size: 28px; font-weight: 800; color: var(--c-brand);
+      letter-spacing: -0.02em;
+    }
+    .backend-card p { color: var(--c-text-muted); font-size: 13px; margin-top: 4px; }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Quick Start
+       ═══════════════════════════════════════════════════════════════ */
+    .steps-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+      margin-top: 40px;
+    }
+    .step-card {
+      display: flex; flex-direction: column;
+      background: var(--c-surface);
+      border: 1px solid var(--c-border);
+      border-radius: 12px;
+      padding: 28px 24px;
+      box-shadow: var(--c-shadow);
+      position: relative;
+    }
+    .step-card .mini-code { margin-top: auto; }
+    .step-num {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--c-brand); color: #fff;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 16px; font-weight: 700;
+      margin-bottom: 14px;
+    }
+    .step-card h4 { font-size: 17px; font-weight: 600; margin-bottom: 10px; }
+    .step-card .mini-code {
+      background: var(--c-code-bg);
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-family: "SF Mono", "Fira Code", "Cascadia Code", Consolas, "Liberation Mono", monospace;
+      font-size: 12px; line-height: 1.55;
+      overflow-x: auto;
+      color: #abb2bf;
+    }
+    .prereqs {
+      margin-top: 32px; text-align: center;
+      font-size: 13px; color: var(--c-text-faint);
+    }
+    .install-cmd {
+      margin-top: 16px; text-align: center;
+    }
+    .install-cmd code {
+      background: var(--c-code-bg);
+      color: #abb2bf; padding: 13px 22px; border-radius: 8px;
+      font-size: 13px; display: inline-block;
+      overflow-x: auto; max-width: 100%;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Language Cards
+       ═══════════════════════════════════════════════════════════════ */
+    .lang-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 16px;
+      margin-top: 40px;
+    }
+    .lang-card {
+      display: flex; flex-direction: column;
+      background: var(--c-surface);
+      border: 1px solid var(--c-border);
+      border-radius: 12px;
+      padding: 22px 18px;
+      box-shadow: var(--c-shadow);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .lang-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--c-shadow-lg);
+    }
+    .lang-card .lang-header {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+    }
+    .lang-card .lang-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .lang-card .lang-name { font-size: 16px; font-weight: 700; }
+    .lang-card .lang-meta {
+      font-size: 12px; color: var(--c-text-muted); line-height: 1.6;
+    }
+    .lang-card .lang-meta span {
+      display: inline-block;
+      background: var(--c-brand-muted);
+      color: var(--c-brand);
+      font-weight: 600; font-size: 11px;
+      padding: 2px 8px; border-radius: 4px; margin-right: 4px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Checker Layers
+       ═══════════════════════════════════════════════════════════════ */
+    .layer-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 20px;
+      margin-top: 40px;
+    }
+    .layer-card {
+      display: flex; flex-direction: column;
+      background: var(--c-surface);
+      border: 1px solid var(--c-border);
+      border-radius: 12px;
+      padding: 28px 24px;
+      box-shadow: var(--c-shadow);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      position: relative;
+    }
+    .layer-card p:last-child { flex: 1; }
+    .layer-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--c-shadow-lg);
+    }
+    .layer-badge {
+      display: inline-block;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+      padding: 3px 10px; border-radius: 4px;
+      margin-bottom: 14px;
+    }
+    .layer-badge.l1 { background: var(--c-success); color: #fff; }
+    .layer-badge.l2 { background: var(--c-brand); color: #fff; }
+    .layer-badge.l3 { background: var(--c-text-muted); color: #fff; }
+    .layer-card h4 { font-size: 17px; font-weight: 600; margin-bottom: 6px; }
+    .layer-card p { color: var(--c-text-muted); font-size: 14px; line-height: 1.5; }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Optimization Stat Cards
+       ═══════════════════════════════════════════════════════════════ */
+    .stat-result-card {
+      display: flex; flex-direction: column;
+      background: var(--c-surface);
+      border: 1px solid var(--c-border);
+      border-radius: 12px;
+      padding: 32px 28px;
+      box-shadow: var(--c-shadow);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      text-align: center;
+      align-items: center;
+    }
+    .stat-result-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--c-shadow-lg);
+    }
+    .stat-big {
+      font-size: clamp(42px, 6vw, 64px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--c-brand);
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+    .stat-result-card h3 {
+      font-size: 17px; font-weight: 600;
+      margin-bottom: 10px;
+      letter-spacing: -0.01em;
+    }
+    .stat-result-card p {
+      color: var(--c-text-muted); font-size: 14px; line-height: 1.55;
+      flex: 1;
+    }
+    .stat-backend-tag {
+      display: inline-block;
+      margin-top: 14px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+      color: var(--c-brand);
+      background: var(--c-brand-muted);
+      padding: 4px 12px; border-radius: 4px;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Comparison Table
+       ═══════════════════════════════════════════════════════════════ */
+    .cmp-table-wrap {
+      margin-top: 32px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .cmp-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 14px;
+    }
+    .cmp-table th, .cmp-table td {
+      padding: 12px 16px; text-align: center;
+      border-bottom: 1px solid var(--c-border);
+    }
+    .cmp-table th {
+      font-weight: 600; font-size: 13px;
+      color: var(--c-text-muted);
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .cmp-table th:first-child, .cmp-table td:first-child { text-align: left; font-weight: 500; }
+    .cmp-table .topo-col { background: var(--c-brand-muted); }
+    .cmp-yes { color: var(--c-success); font-weight: 700; }
+    .cmp-no  { color: var(--c-text-faint); }
+    .cmp-some { color: var(--c-warn); font-size: 12px; }
+    .cmp-summary {
+      margin-top: 20px; text-align: center;
+      font-size: 15px; color: var(--c-text-muted);
+      max-width: 640px; margin-left: auto; margin-right: auto;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Community Grid
+       ═══════════════════════════════════════════════════════════════ */
+    .community-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-top: 32px;
+    }
+    .community-card {
+      display: flex; flex-direction: column;
+      background: var(--c-surface);
+      border: 1px solid var(--c-border);
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: var(--c-shadow);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s;
+      text-decoration: none; color: var(--c-text);
+    }
+    .community-card p { flex: 1; }
+    .community-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--c-shadow-lg);
+      border-color: var(--c-brand);
+      text-decoration: none; color: var(--c-text);
+    }
+    .community-card h4 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .community-card p { font-size: 13px; color: var(--c-text-muted); }
+
+    /* ═══════════════════════════════════════════════════════════════
+       Footer
+       ═══════════════════════════════════════════════════════════════ */
     footer {
       text-align: center;
-      padding: 40px 24px;
+      padding: 48px 24px;
       color: var(--c-text-muted);
       font-size: 13px;
       border-top: 1px solid var(--c-border);
     }
     footer a { color: var(--c-text-muted); }
     footer a:hover { color: var(--c-text); }
-    footer .sep { margin: 0 8px; opacity: 0.4; }
+    footer .footer-links {
+      display: flex; flex-wrap: wrap; gap: 6px; justify-content: center;
+      margin-bottom: 16px;
+    }
+    footer .footer-links span { color: var(--c-text-faint); }
+    footer .footer-license { margin-top: 10px; font-size: 12px; opacity: 0.7; }
 
-    @media (max-width: 640px) {
-      .hero { padding: 56px 16px 40px; }
-      section { padding: 40px 0; }
-      .hero-icon { width: 60px; height: 60px; }
+    /* ═══════════════════════════════════════════════════════════════
+       Responsive
+       ═══════════════════════════════════════════════════════════════ */
+    @media (max-width: 768px) {
+      .action-panels { grid-template-columns: 1fr; }
+      .hero { padding: 60px 16px 56px; }
+      section { padding: 56px 0; }
+      .code-body { font-size: 11.5px; }
+      .terminal-body { font-size: 11px; }
+      .arch-row { flex-direction: column; align-items: center; }
+    }
+    @media (max-width: 480px) {
+      .nav-links { gap: 16px; }
+      .nav-links a { font-size: 13px; }
+      .container { padding: 0 16px; }
+      .hero-code-wrap { max-width: 100%; }
+      .code-ln { display: none; }
+      .badges { gap: 6px; }
+      .badge { font-size: 11px; padding: 4px 10px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      section.reveal-hidden { opacity: 1; transform: none; transition: none; }
+      .card, .decl-card, .backend-card, .lang-card, .layer-card, .community-card {
+        transition: none;
+      }
     }
   </style>
 </head>
 <body>
 
-<!-- Hero -->
-<header class="hero">
-  <img class="hero-icon" src="icon.svg" alt="Topo icon" width="80" height="80">
-  <h1>Topo</h1>
-  <p class="tagline">Explicit logic declarations for program verification and optimization.</p>
-  <div class="hero-links">
-    <a class="btn btn-primary" href="https://github.com/Topo-lang">GitHub →</a>
-    <a class="btn btn-secondary" href="https://github.com/Topo-lang/topo-core">Get started</a>
-  </div>
-</header>
+  <!-- ═══════════════════════════════════════════════════════════
+       Navigation
+       ═══════════════════════════════════════════════════════════ -->
+  <nav class="nav" id="nav">
+    <div class="nav-inner">
+      <a href="#" class="nav-brand">Topo</a>
+      <div class="nav-links">
+        <a href="https://github.com/Topo-lang">GitHub</a>
+        <button class="lang-toggle" id="lang-toggle" aria-label="Switch language">中</button>
+        <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+      </div>
+    </div>
+  </nav>
 
-<!-- What is Topo -->
-<section>
-  <div class="container">
-    <h2>What is Topo</h2>
-    <p class="section-intro">
-      Topo extracts the logical requirements of a program — what's public, what must run before what,
-      what can run in parallel — from implicit code patterns into explicit <code>.topo</code> declarations.
-      These declarations are auditable, machine-verifiable contracts.
+  <!-- ═══════════════════════════════════════════════════════════
+       Hero
+       ═══════════════════════════════════════════════════════════ -->
+  <header class="hero">
+    <div class="hero-name">Topo</div>
+    <p class="hero-headline" data-i18n="hero-headline">Logic Declarations That Your Compiler Can Enforce</p>
+    <p class="hero-desc" data-i18n-html="hero-desc">
+      Topo extracts a program's logical structure into explicit <code>.topo</code> declarations
+      &mdash; auditable, machine-verifiable contracts that catch violations at compile time
+      and unlock aggressive optimization across five host languages.
     </p>
-    <div class="grid-3">
-      <div class="card">
-        <div class="card-icon">&#128737;</div>
-        <h3>Undeclared behavior is forbidden</h3>
-        <p>Non-<code>external</code> functions cannot access system capabilities. Violations are compile-time errors, not warnings.</p>
-      </div>
-      <div class="card">
-        <div class="card-icon">&#9889;</div>
-        <h3>Declarations enable optimization</h3>
-        <p>Explicit stage ordering, parallelism, and visibility give the compiler information beyond what traditional analysis can derive.</p>
-      </div>
-      <div class="card">
-        <div class="card-icon">&#128269;</div>
-        <h3>Review focuses on declarations</h3>
-        <p>A 1000-line PR might have 3 unsafe points marked <code>external</code> — reviewers check those, not the entire diff.</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="#quickstart" data-i18n="hero-cta-quick">Quick Start</a>
+      <a class="btn btn-secondary" href="https://github.com/Topo-lang" data-i18n="hero-cta-github">View on GitHub</a>
+    </div>
+
+    <!-- Hero code window: game-engine 5-stage parallel loop -->
+    <div class="hero-code-wrap">
+      <div class="code-window">
+        <div class="code-titlebar">
+          <span class="code-dot red"></span>
+          <span class="code-dot yellow"></span>
+          <span class="code-dot green"></span>
+          <span class="code-title">main.topo — 5-stage parallel game loop</span>
+        </div>
+        <div class="code-body">
+          <div class="code-line"><span class="code-ln"> 1</span><span class="code-text"><span class="syn-cm">// main.topo — Game engine root orchestration</span></span></div>
+          <div class="code-line"><span class="code-ln"> 2</span><span class="code-text"> </span></div>
+          <div class="code-line"><span class="code-ln"> 3</span><span class="code-text"><span class="syn-kw">using</span> <span class="syn-ty">int</span> = std::cpp17::int;</span></div>
+          <div class="code-line"><span class="code-ln"> 4</span><span class="code-text"> </span></div>
+          <div class="code-line"><span class="code-ln"> 5</span><span class="code-text"><span class="syn-kw">import</span> <span class="syn-str">core/types</span>;</span></div>
+          <div class="code-line"><span class="code-ln"> 6</span><span class="code-text"><span class="syn-kw">import</span> <span class="syn-str">core/math</span>;</span></div>
+          <div class="code-line"><span class="code-ln"> 7</span><span class="code-text"><span class="syn-kw">import</span> <span class="syn-str">engine/renderer</span>;</span></div>
+          <div class="code-line"><span class="code-ln"> 8</span><span class="code-text"><span class="syn-kw">import</span> <span class="syn-str">engine/physics</span>;</span></div>
+          <div class="code-line"><span class="code-ln"> 9</span><span class="code-text"><span class="syn-kw">import</span> <span class="syn-str">game/systems</span>;</span></div>
+          <div class="code-line"><span class="code-ln">10</span><span class="code-text"> </span></div>
+          <div class="code-line"><span class="code-ln">11</span><span class="code-text"><span class="syn-kw">namespace</span> <span class="syn-fn">game_engine</span> {</span></div>
+          <div class="code-line"><span class="code-ln">12</span><span class="code-text">  <span class="syn-cm">// 5-stage parallel game loop</span></span></div>
+          <div class="code-line"><span class="code-ln">13</span><span class="code-text">  <span class="syn-kw">public</span>:</span></div>
+          <div class="code-line"><span class="code-ln">14</span><span class="code-text">    <span class="syn-ty">void</span> <span class="syn-fn">run</span>();</span></div>
+          <div class="code-line"><span class="code-ln">15</span><span class="code-text"> </span></div>
+          <div class="code-line"><span class="code-ln">16</span><span class="code-text">    <span class="syn-kw">fn</span> <span class="syn-fn">run</span> {</span></div>
+          <div class="code-line"><span class="code-ln">17</span><span class="code-text">      <span class="syn-st">stage&lt;1&gt;</span> <span class="syn-fn">systems::poll</span>() <span class="syn-op">-&gt;</span> <span class="syn-ty">input_state</span>;</span></div>
+          <div class="code-line"><span class="code-ln">18</span><span class="code-text">      <span class="syn-st">stage&lt;2&gt;</span> <span class="syn-fn">engine::physics::step</span>(input_state) <span class="syn-op">-&gt;</span> <span class="syn-ty">phys_result</span>;</span></div>
+          <div class="code-line"><span class="code-ln">19</span><span class="code-text">      <span class="syn-st">stage&lt;2&gt;</span> <span class="syn-fn">systems::tick_ai</span>() <span class="syn-op">-&gt;</span> <span class="syn-ty">ai_result</span>;          <span class="syn-cm">// parallel with physics</span></span></div>
+          <div class="code-line"><span class="code-ln">20</span><span class="code-text">      <span class="syn-st">stage&lt;3&gt;</span> <span class="syn-fn">scene::update</span>() <span class="syn-op">-&gt;</span> <span class="syn-ty">frame</span>;</span></div>
+          <div class="code-line"><span class="code-ln">21</span><span class="code-text">      <span class="syn-st">stage&lt;4&gt;</span> <span class="syn-fn">engine::renderer::draw</span>(frame);</span></div>
+          <div class="code-line"><span class="code-ln">22</span><span class="code-text">      <span class="syn-st">stage&lt;4&gt;</span> <span class="syn-fn">engine::resources::mix</span>(frame);             <span class="syn-cm">// parallel with draw</span></span></div>
+          <div class="code-line"><span class="code-ln">23</span><span class="code-text">      <span class="syn-st">stage&lt;5&gt;</span> <span class="syn-fn">engine::renderer::present</span>();</span></div>
+          <div class="code-line"><span class="code-ln">24</span><span class="code-text">    }</span></div>
+          <div class="code-line"><span class="code-ln">25</span><span class="code-text">}</span></div>
+        </div>
       </div>
     </div>
-  </div>
-</section>
 
-<!-- Three Declaration Types -->
-<section>
-  <div class="container">
-    <h2>Three Declaration Types</h2>
-    <p class="section-intro">Every <code>.topo</code> declaration falls into one of three classes.</p>
-    <div class="decl-type">
-      <div class="decl-card">
-        <span class="label">Boundary</span>
-        <h3>Existence boundary</h3>
-        <p>Which symbols are public API, which are implementation detail. Enables visibility verification, dead code elimination, and symbol obfuscation.</p>
-      </div>
-      <div class="decl-card">
-        <span class="label">Order</span>
-        <h3>Logic ordering</h3>
-        <p>Which operations must precede which (<code>stage&lt;N&gt;</code>). Enables stage isolation verification and instruction reordering.</p>
-      </div>
-      <div class="decl-card">
-        <span class="label">Parallel</span>
-        <h3>Logic parallelism</h3>
-        <p>Which operations are independent (pipeline DAG). Enables automatic parallelization and pipeline codegen.</p>
-      </div>
+    <div class="badges">
+      <span class="badge" data-i18n-html="badge-build"><span class="badge-dot green"></span> Build Passing</span>
+      <span class="badge" data-i18n-html="badge-langs"><span class="badge-dot blue"></span> C++ &middot; Rust &middot; Java &middot; Python &middot; TypeScript</span>
+      <span class="badge" data-i18n="badge-license">MIT License</span>
     </div>
-  </div>
-</section>
+  </header>
 
-<!-- Supported Languages -->
-<section>
-  <div class="container">
-    <h2>Supported Languages</h2>
-    <p class="section-intro">Per-language SDKs with analysis, transpilation, and LSP support.</p>
-    <div class="lang-list">
-      <span class="lang-badge"><span class="dot" style="background:#0066FF"></span> C++</span>
-      <span class="lang-badge"><span class="dot" style="background:#0066FF"></span> Rust</span>
-      <span class="lang-badge"><span class="dot" style="background:#0066FF"></span> Java</span>
-      <span class="lang-badge"><span class="dot" style="background:#0066FF"></span> Python</span>
-      <span class="lang-badge"><span class="dot" style="background:#0066FF"></span> TypeScript</span>
+  <main>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         The Problem Topo Solves
+         ═══════════════════════════════════════════════════════════ -->
+    <section>
+      <div class="container">
+        <span class="section-label" data-i18n="why-label">Why Topo</span>
+        <h2 class="section-title" data-i18n="why-title">AI-Generated Code Is Outpacing Human Review</h2>
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="stat-num" data-i18n="why-stat1-num">1000+</div>
+            <div class="stat-label" data-i18n="why-stat1-label">Lines in a typical pull request</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" data-i18n="why-stat2-num">3</div>
+            <div class="stat-label" data-i18n="why-stat2-label">Unsafe points a reviewer actually needs to check</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num" data-i18n="why-stat3-num">100%</div>
+            <div class="stat-label" data-i18n="why-stat3-label">Machine-verified compliance for everything else</div>
+          </div>
+        </div>
+        <p class="problem-text" data-i18n-html="why-desc">
+          In the era of AI code generation, code volume exceeds human review capacity.
+          A single malicious line hidden in a large PR is nearly impossible to find.
+          Topo's <code>.topo</code> declarations create an auditable machine-verifiable
+          contract that reduces review to three things: <strong>the declarations</strong>,
+          any <code>external</code> functions, and trust in the checker.
+        </p>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         What is Topo
+         ═══════════════════════════════════════════════════════════ -->
+    <section>
+      <div class="container">
+        <span class="section-label" data-i18n="overview-label">Overview</span>
+        <h2 class="section-title" data-i18n="overview-title">What is Topo</h2>
+        <p class="section-sub" data-i18n-html="overview-sub">
+          Topo extracts the logical requirements of a program &mdash; what's public,
+          what must run before what, what can run in parallel &mdash; from implicit
+          code patterns into explicit <code>.topo</code> declarations.
+        </p>
+        <div class="grid-3">
+          <div class="card">
+            <div class="card-strip blue"></div>
+            <h3 data-i18n="vp1-title">Undeclared Behavior Is Forbidden</h3>
+            <p data-i18n-html="vp1-desc">Non-<code>external</code> functions cannot access I/O, networking, or
+            process capabilities. Violations are compile-time errors, not warnings
+            buried in a log.</p>
+          </div>
+          <div class="card">
+            <div class="card-strip purple"></div>
+            <h3 data-i18n="vp2-title">Declarations Drive Optimization</h3>
+            <p data-i18n="vp2-desc">Explicit stage ordering, parallelism, and visibility give the compiler
+            information beyond what traditional static analysis can derive &mdash;
+            enabling inlining, reordering, and auto-parallelization.</p>
+          </div>
+          <div class="card">
+            <div class="card-strip amber"></div>
+            <h3 data-i18n="vp3-title">Review the Declarations, Not the Diff</h3>
+            <p data-i18n-html="vp3-desc">A 1000-line PR might have 3 unsafe points marked <code>external</code>.
+            Reviewers check those and the <code>.topo</code> changes &mdash; the rest
+            is machine-verified.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         Three Declaration Types
+         ═══════════════════════════════════════════════════════════ -->
+    <section>
+      <div class="container">
+        <span class="section-label" data-i18n="decl-label">Declaration Types</span>
+        <h2 class="section-title" data-i18n="decl-title">Three Declaration Classes</h2>
+        <p class="section-sub" data-i18n-html="decl-sub">
+          Every <code>.topo</code> declaration falls into one of three classes.
+          Together they describe the full logical structure of a program.
+        </p>
+        <div class="decl-grid">
+          <div class="decl-card">
+            <span class="decl-label" data-i18n="decl1-label">Boundary</span>
+            <h3 data-i18n="decl1-title">Existence Boundary</h3>
+            <p data-i18n="decl1-desc">Which symbols are public API, which are implementation detail, and
+            which are internal to a stage. Enables visibility verification, dead
+            code elimination, and symbol obfuscation.</p>
+            <div class="decl-snippet"><span class="syn-kw">public</span>:<br><span class="syn-kw">protected</span>:<br><span class="syn-kw">private</span>:<br><span class="syn-kw">internal</span>:</div>
+          </div>
+          <div class="decl-card">
+            <span class="decl-label" data-i18n="decl2-label">Order</span>
+            <h3 data-i18n="decl2-title">Logic Ordering</h3>
+            <p data-i18n-html="decl2-desc">Which operations must precede which via <code>stage&lt;N&gt;</code>
+            annotation. Enables stage-isolation verification and safe instruction
+            reordering across stage boundaries.</p>
+            <div class="decl-snippet"><span class="syn-st">stage&lt;1&gt;</span> <span class="syn-fn">init</span>();<br><span class="syn-st">stage&lt;2&gt;</span> <span class="syn-fn">process</span>();<br><span class="syn-st">stage&lt;3&gt;</span> <span class="syn-fn">finalize</span>();</div>
+          </div>
+          <div class="decl-card">
+            <span class="decl-label" data-i18n="decl3-label">Parallel</span>
+            <h3 data-i18n="decl3-title">Logic Parallelism</h3>
+            <p data-i18n="decl3-desc">Which operations are independent at the same stage. Functions at
+            identical stage numbers form a pipeline DAG, enabling automatic
+            parallelization and concurrent code generation.</p>
+            <div class="decl-snippet"><span class="syn-st">stage&lt;2&gt;</span> <span class="syn-fn">physics::step</span>();<br><span class="syn-st">stage&lt;2&gt;</span> <span class="syn-fn">tick_ai</span>();     <span class="syn-cm">// independent</span><br><span class="syn-st">stage&lt;2&gt;</span> <span class="syn-fn">mix_audio</span>();  <span class="syn-cm">// all three run in parallel</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         See It in Action
+         ═══════════════════════════════════════════════════════════ -->
+    <section>
+      <div class="container">
+        <span class="section-label" data-i18n="demo-label">Demo</span>
+        <h2 class="section-title" data-i18n="demo-title">See It in Action</h2>
+        <p class="section-sub" data-i18n-html="demo-sub">
+          Left: a <code>.topo</code> declaration file for an order-processing pipeline.
+          Right: what <code>topo-check</code> reports when the host code violates it.
+        </p>
+        <div class="action-panels">
+          <div>
+            <div class="action-label" data-i18n="demo-label-decl">.topo declaration</div>
+            <div class="code-window">
+              <div class="code-titlebar">
+                <span class="code-dot red"></span>
+                <span class="code-dot yellow"></span>
+                <span class="code-dot green"></span>
+                <span class="code-title">processor.topo</span>
+              </div>
+              <div class="code-body">
+                <div class="code-line"><span class="code-ln"> 1</span><span class="code-text"><span class="syn-kw">namespace</span> <span class="syn-fn">orders</span> {</span></div>
+                <div class="code-line"><span class="code-ln"> 2</span><span class="code-text">  <span class="syn-kw">public</span>:</span></div>
+                <div class="code-line"><span class="code-ln"> 3</span><span class="code-text">    <span class="syn-ty">Invoice</span> <span class="syn-fn">process_order</span>(<span class="syn-kw">const</span> <span class="syn-ty">Order</span>&amp; order);</span></div>
+                <div class="code-line"><span class="code-ln"> 4</span><span class="code-text"> </span></div>
+                <div class="code-line"><span class="code-ln"> 5</span><span class="code-text">    <span class="syn-kw">fn</span> <span class="syn-fn">process_order</span> {</span></div>
+                <div class="code-line"><span class="code-ln"> 6</span><span class="code-text">      <span class="syn-st">stage&lt;1&gt;</span> <span class="syn-fn">validate_order</span>(order);</span></div>
+                <div class="code-line"><span class="code-ln"> 7</span><span class="code-text">      <span class="syn-st">stage&lt;2&gt;</span> <span class="syn-fn">charge_payment</span>(order) <span class="syn-op">-&gt;</span> <span class="syn-ty">payment</span>;</span></div>
+                <div class="code-line"><span class="code-ln"> 8</span><span class="code-text">      <span class="syn-st">stage&lt;2&gt;</span> <span class="syn-fn">calculate_shipping</span>(order) <span class="syn-op">-&gt;</span> <span class="syn-ty">shipping</span>;</span></div>
+                <div class="code-line"><span class="code-ln"> 9</span><span class="code-text">      <span class="syn-st">stage&lt;3&gt;</span> <span class="syn-fn">create_invoice</span>(order, payment, shipping) <span class="syn-op">-&gt;</span> <span class="syn-ty">invoice</span>;</span></div>
+                <div class="code-line"><span class="code-ln">10</span><span class="code-text">      <span class="syn-st">stage&lt;4&gt;</span> <span class="syn-fn">send_confirmation</span>(invoice);</span></div>
+                <div class="code-line"><span class="code-ln">11</span><span class="code-text">      <span class="syn-st">stage&lt;4&gt;</span> <span class="syn-fn">update_analytics</span>(order, invoice);</span></div>
+                <div class="code-line"><span class="code-ln">12</span><span class="code-text">    }</span></div>
+                <div class="code-line"><span class="code-ln">13</span><span class="code-text">}</span></div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="action-label" data-i18n="demo-label-output">topo-check output</div>
+            <div class="terminal-window">
+              <div class="code-titlebar">
+                <span class="code-dot red"></span>
+                <span class="code-dot yellow"></span>
+                <span class="code-dot green"></span>
+                <span class="code-title">terminal — topo-check .</span>
+              </div>
+              <div class="terminal-body">
+                <div><span class="syn-dim">$</span> topo-check .</div>
+                <div>&nbsp;</div>
+                <div><span class="syn-grn">&check;</span> completeness    <span class="syn-dim">(12/12 functions declared)</span></div>
+                <div><span class="syn-grn">&check;</span> visibility      <span class="syn-dim">(no cross-boundary calls)</span></div>
+                <div><span class="syn-red">&cross;</span> containment     <span class="syn-red">(2 violations)</span></div>
+                <div><span class="syn-grn">&check;</span> stage-isolation</div>
+                <div><span class="syn-grn">&check;</span> purity</div>
+                <div><span class="syn-grn">&check;</span> import-path</div>
+                <div>&nbsp;</div>
+                <div><span class="syn-red">2 containment violations:</span></div>
+                <div>&nbsp;</div>
+                <div><span class="syn-dim">src/payment.cpp:47</span>  <span class="syn-red">call to open() inside non-external</span></div>
+                <div>  <span class="syn-red">function charge_payment()</span></div>
+                <div>&nbsp;</div>
+                <div><span class="syn-dim">src/analytics.cpp:23</span>  <span class="syn-red">HTTP fetch inside</span></div>
+                <div>  <span class="syn-red">update_analytics()</span></div>
+                <div>  <span class="syn-dim">(third-party dependency capability)</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         Architecture & Backends
+         ═══════════════════════════════════════════════════════════ -->
+    <section>
+      <div class="container">
+        <span class="section-label" data-i18n="arch-label">Architecture</span>
+        <h2 class="section-title" data-i18n="arch-title">One Declaration Language, Five Host Languages, Three Backends</h2>
+        <div class="arch-diagram">
+          <div class="arch-box user">.topo source files</div>
+          <div class="arch-arrow"></div>
+          <div class="arch-box core" data-i18n="arch-core">topo-core &mdash; Parse, Analyze, Check</div>
+          <div class="arch-arrow"></div>
+        </div>
+        <div class="arch-row">
+          <div class="arch-sdk"><span class="dot" style="background:#0066FF"></span> C++ SDK</div>
+          <div class="arch-sdk"><span class="dot" style="background:#DEA584"></span> Rust SDK</div>
+          <div class="arch-sdk"><span class="dot" style="background:#B07219"></span> Java SDK</div>
+          <div class="arch-sdk"><span class="dot" style="background:#3572A5"></span> Python SDK</div>
+          <div class="arch-sdk"><span class="dot" style="background:#3178C6"></span> TypeScript SDK</div>
+        </div>
+        <div style="text-align:center;margin-top:8px;">
+          <div class="arch-arrow" style="display:inline-block;"></div>
+        </div>
+        <div class="arch-backend-row">
+          <div class="backend-card">
+            <h4 data-i18n="arch-llvm-title">LLVM Backend</h4>
+            <div class="backend-stat">17</div>
+            <p data-i18n="arch-llvm-desc">IR optimization passes for C++ and Rust. C-ABI runtime with JIT engine. 41 benchmarks.</p>
+          </div>
+          <div class="backend-card">
+            <h4 data-i18n="arch-jvm-title">JVM Backend</h4>
+            <div class="backend-stat">15</div>
+            <p data-i18n="arch-jvm-desc">ASM bytecode transformation passes for Java. Gradle integration with decompile support.</p>
+          </div>
+          <div class="backend-card">
+            <h4 data-i18n="arch-v8-title">V8 Backend</h4>
+            <div class="backend-stat">TS</div>
+            <p data-i18n="arch-v8-desc">tsserver bridge for TypeScript semantic analysis. Correctness-preserving source rewrites.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         Quick Start
+         ═══════════════════════════════════════════════════════════ -->
+    <section id="quickstart">
+      <div class="container">
+        <span class="section-label" data-i18n="qs-label">Get Started</span>
+        <h2 class="section-title" data-i18n="qs-title">Quick Start</h2>
+        <p class="section-sub" data-i18n="qs-sub">
+          Three steps from zero to verified build. Works with C++, Rust, Java, Python, and TypeScript.
+        </p>
+        <div class="steps-row">
+          <div class="step-card">
+            <div class="step-num">1</div>
+            <h4 data-i18n="qs-step1-title">Write Declarations</h4>
+            <p style="font-size:14px;color:var(--c-text-muted);margin-bottom:12px;" data-i18n-html="qs-step1-desc">Create a <code>.topo</code> file describing your program's logical structure.</p>
+            <div class="mini-code"><span class="syn-kw">namespace</span> <span class="syn-fn">app</span> {<br>  <span class="syn-kw">public</span>:<br>    <span class="syn-ty">int</span> <span class="syn-fn">process</span>(<span class="syn-ty">int</span> x);<br>  <span class="syn-kw">protected</span>:<br>    <span class="syn-ty">int</span> <span class="syn-fn">helper</span>(<span class="syn-ty">int</span> x);<br>}</div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">2</div>
+            <h4 data-i18n="qs-step2-title">Configure</h4>
+            <p style="font-size:14px;color:var(--c-text-muted);margin-bottom:12px;" data-i18n-html="qs-step2-desc">Create a <code>Topo.toml</code> to tell the toolchain about your project.</p>
+            <div class="mini-code">[project]<br>name = <span class="syn-str">"my-project"</span><br><br>[topo]<br>root = <span class="syn-str">"topo/main.topo"</span><br><br>[build]<br>language = <span class="syn-str">"cpp"</span><br>sources = [<span class="syn-str">"src/*.cpp"</span>]</div>
+          </div>
+          <div class="step-card">
+            <div class="step-num">3</div>
+            <h4 data-i18n="qs-step3-title">Check and Build</h4>
+            <p style="font-size:14px;color:var(--c-text-muted);margin-bottom:12px;" data-i18n="qs-step3-desc">Run the checker, then build with optimization informed by your declarations.</p>
+            <div class="mini-code"><span class="syn-dim">$</span> topo-check .<br><span class="syn-grn">&check; All checks passed</span><br><br><span class="syn-dim">$</span> topo-build<br><span class="syn-grn">Build succeeded</span></div>
+          </div>
+        </div>
+        <p class="prereqs" data-i18n="qs-prereqs">Requires CMake 3.20+, Ninja, and vcpkg. LLVM is auto-managed by the build system.</p>
+        <div class="install-cmd">
+          <code>git clone https://github.com/Topo-lang/topo-core.git &amp;&amp; cd topo-core &amp;&amp; cmake --preset default &amp;&amp; cmake --build build</code>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         Supported Languages
+         ═══════════════════════════════════════════════════════════ -->
+    <section>
+      <div class="container">
+        <span class="section-label" data-i18n="lang-label">Languages</span>
+        <h2 class="section-title" data-i18n="lang-title">Supported Languages</h2>
+        <p class="section-sub" data-i18n-html="lang-sub">
+          Per-language SDKs with analysis, transpilation, and LSP support.
+          Each language gets <code>check</code>; optimization depth varies by backend.
+        </p>
+        <div class="lang-grid">
+          <div class="lang-card">
+            <div class="lang-header">
+              <span class="lang-dot" style="background:#0066FF"></span>
+              <span class="lang-name">C++</span>
+            </div>
+            <div class="lang-meta">
+              <span>L1+L2</span> Check depth<br>
+              Backend: LLVM
+            </div>
+          </div>
+          <div class="lang-card">
+            <div class="lang-header">
+              <span class="lang-dot" style="background:#DEA584"></span>
+              <span class="lang-name">Rust</span>
+            </div>
+            <div class="lang-meta">
+              <span>L1+L2</span> Check depth<br>
+              Backend: LLVM
+            </div>
+          </div>
+          <div class="lang-card">
+            <div class="lang-header">
+              <span class="lang-dot" style="background:#B07219"></span>
+              <span class="lang-name">Java</span>
+            </div>
+            <div class="lang-meta">
+              <span>L1+L2</span> Check depth<br>
+              Backend: JVM
+            </div>
+          </div>
+          <div class="lang-card">
+            <div class="lang-header">
+              <span class="lang-dot" style="background:#3572A5"></span>
+              <span class="lang-name">Python</span>
+            </div>
+            <div class="lang-meta">
+              <span>L1</span> Check depth<br>
+              Backend: check-only
+            </div>
+          </div>
+          <div class="lang-card">
+            <div class="lang-header">
+              <span class="lang-dot" style="background:#3178C6"></span>
+              <span class="lang-name">TypeScript</span>
+            </div>
+            <div class="lang-meta">
+              <span>L1+L2</span> Check depth<br>
+              Backend: V8
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         Three-Layer Safety Verification
+         ═══════════════════════════════════════════════════════════ -->
+    <section>
+      <div class="container">
+        <span class="section-label" data-i18n="safety-label">Safety</span>
+        <h2 class="section-title" data-i18n="safety-title">Three-Layer Safety Verification</h2>
+        <p class="section-sub" data-i18n-html="safety-sub">
+          Every host language gets <code>check</code>. Each layer catches a different class of violation.
+        </p>
+        <div class="layer-grid">
+          <div class="layer-card">
+            <span class="layer-badge l1">L1</span>
+            <h4 data-i18n="safety-l1-title">Regex Scanning</h4>
+            <p data-i18n="safety-l1-desc">Pattern-based detection of direct API calls, I/O operations, and escape
+            patterns. Runs on any host language with zero dependencies &mdash; no
+            toolchain SDK required.</p>
+          </div>
+          <div class="layer-card">
+            <span class="layer-badge l2">L2</span>
+            <h4 data-i18n="safety-l2-title">Semantic Analysis</h4>
+            <p data-i18n="safety-l2-desc">Resolved-symbol analysis through LSP bridges (clangd, rust-analyzer,
+            tsserver, jdt). Catches indirect capability use, macro expansion,
+            and template-instantiated violations.</p>
+          </div>
+          <div class="layer-card">
+            <span class="layer-badge l3">L3</span>
+            <h4 data-i18n="safety-l3-title">Post-Transform Verification</h4>
+            <p data-i18n="safety-l3-desc">Linkage and visibility re-verification after backend optimization passes.
+            Ensures that transforms preserved the declaration contract through every
+            pipeline stage.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         Optimization
+         ═══════════════════════════════════════════════════════════ -->
+    <section>
+      <div class="container">
+        <span class="section-label" data-i18n="opt-label">Optimization</span>
+        <h2 class="section-title" data-i18n="opt-title">Measured Optimization Impact</h2>
+        <p class="section-sub" data-i18n-html="opt-sub">
+          The same <code>.topo</code> declarations that power <code>check</code>
+          tell the compiler what's safe to transform. Results from Topo's
+          55-benchmark suite (Apple M1, forced-mode on friendly workloads).
+        </p>
+        <div class="grid-3">
+          <div class="stat-result-card">
+            <div class="stat-big" data-i18n-html="opt-stat1-num">3.3&times;</div>
+            <h3 data-i18n="opt-stat1-title">JVM Auto-Parallelization</h3>
+            <p data-i18n-html="opt-stat1-desc">Same-stage functions proven independent by <code>.topo</code>
+            pipeline DAG. Backend emits concurrent bytecode with lock elision —
+            safety guaranteed by the declaration, not by runtime checks.</p>
+            <span class="stat-backend-tag">JVM — Java</span>
+          </div>
+          <div class="stat-result-card">
+            <div class="stat-big" data-i18n-html="opt-stat2-num">2.1&times;</div>
+            <h3 data-i18n="opt-stat2-title">LLVM Data-Layout Transform</h3>
+            <p data-i18n-html="opt-stat2-desc">Visibility and stage ordering prove strided access patterns.
+            Compiler switches struct-of-arrays to array-of-structs layout —
+            streaming workloads benefit from contiguous memory access.</p>
+            <span class="stat-backend-tag">LLVM — C++ / Rust</span>
+          </div>
+          <div class="stat-result-card">
+            <div class="stat-big" data-i18n-html="opt-stat3-num">1.9&times;</div>
+            <h3 data-i18n="opt-stat3-title">LLVM Arena Allocation</h3>
+            <p data-i18n-html="opt-stat3-desc">Visibility declarations prove bounded object lifetime. Compiler
+            replaces heap allocation with arena — no malloc/free, no GC
+            pressure, cache-warm reuse within the declared scope.</p>
+            <span class="stat-backend-tag">LLVM — C++ / Rust</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         Where Topo Fits
+         ═══════════════════════════════════════════════════════════ -->
+    <section>
+      <div class="container">
+        <span class="section-label" data-i18n="pos-label">Positioning</span>
+        <h2 class="section-title" data-i18n="pos-title">Where Topo Fits</h2>
+        <div class="cmp-table-wrap">
+          <table class="cmp-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Linter</th>
+                <th>Type System</th>
+                <th>Contract Lang</th>
+                <th class="topo-col">Topo</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Compile-time enforcement</td>
+                <td class="cmp-some">sometimes</td>
+                <td class="cmp-yes">yes</td>
+                <td class="cmp-yes">yes</td>
+                <td class="cmp-yes topo-col">yes</td>
+              </tr>
+              <tr>
+                <td>Auditable by non-programmers</td>
+                <td class="cmp-no">no</td>
+                <td class="cmp-no">no</td>
+                <td class="cmp-some">sometimes</td>
+                <td class="cmp-yes topo-col">yes</td>
+              </tr>
+              <tr>
+                <td>Drives compiler optimizations</td>
+                <td class="cmp-no">no</td>
+                <td class="cmp-some">limited</td>
+                <td class="cmp-no">no</td>
+                <td class="cmp-yes topo-col">yes</td>
+              </tr>
+              <tr>
+                <td>Language-agnostic</td>
+                <td class="cmp-some">sometimes</td>
+                <td class="cmp-no">no</td>
+                <td class="cmp-some">sometimes</td>
+                <td class="cmp-yes topo-col">yes</td>
+              </tr>
+              <tr>
+                <td>Separates logic from implementation</td>
+                <td class="cmp-no">no</td>
+                <td class="cmp-no">no</td>
+                <td class="cmp-yes">yes</td>
+                <td class="cmp-yes topo-col">yes</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="cmp-summary" data-i18n-html="pos-summary">
+          Topo is not a linter. It's not a type system. It's a
+          <strong>declaration layer</strong> that sits above your code &mdash;
+          checked and enforced by the toolchain, consumed by the optimizer,
+          and readable by anyone on the team.
+        </p>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════
+         Community & Resources
+         ═══════════════════════════════════════════════════════════ -->
+    <section>
+      <div class="container">
+        <span class="section-label" data-i18n="res-label">Resources</span>
+        <h2 class="section-title" data-i18n-html="res-title">Community &amp; Resources</h2>
+        <div class="community-grid">
+          <a class="community-card" href="https://github.com/Topo-lang">
+            <h4 data-i18n="res-gh-org">GitHub Organization</h4>
+            <p data-i18n="res-gh-org-desc">All 13 public repositories</p>
+          </a>
+          <a class="community-card" href="https://github.com/Topo-lang/topo-core">
+            <h4 data-i18n="res-core">topo-core</h4>
+            <p data-i18n="res-core-desc">Language core and specification tests</p>
+          </a>
+          <a class="community-card" href="https://github.com/Topo-lang/topo-cli">
+            <h4 data-i18n="res-cli">topo-cli</h4>
+            <p data-i18n="res-cli-desc">CLI tools and dispatchers</p>
+          </a>
+          <a class="community-card" href="https://github.com/Topo-lang/topo-lang">
+            <h4 data-i18n="res-lang">topo-lang</h4>
+            <p data-i18n="res-lang-desc">Plugin framework and registry</p>
+          </a>
+          <a class="community-card" href="https://github.com/Topo-lang/topo-llvm">
+            <h4 data-i18n="res-llvm">topo-llvm</h4>
+            <p data-i18n="res-llvm-desc">LLVM optimization backend</p>
+          </a>
+          <a class="community-card" href="https://github.com/Topo-lang/topo-lang-cpp">
+            <h4 data-i18n="res-cpp">topo-lang-cpp</h4>
+            <p data-i18n="res-cpp-desc">C++ SDK and examples</p>
+          </a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       Footer
+       ═══════════════════════════════════════════════════════════ -->
+  <footer>
+    <div class="container">
+      <div class="footer-links">
+        <a href="https://github.com/Topo-lang">GitHub</a><span>&middot;</span>
+        <a href="https://github.com/Topo-lang/topo-core">topo-core</a><span>&middot;</span>
+        <a href="https://github.com/Topo-lang/topo-lang">topo-lang</a><span>&middot;</span>
+        <a href="https://github.com/Topo-lang/topo-cli">topo-cli</a><span>&middot;</span>
+        <a href="https://github.com/Topo-lang/topo-llvm">topo-llvm</a><span>&middot;</span>
+        <a href="https://github.com/Topo-lang/topo-jvm">topo-jvm</a><span>&middot;</span>
+        <a href="https://github.com/Topo-lang/topo-v8">topo-v8</a><span>&middot;</span>
+        <a href="https://github.com/Topo-lang/topo-lsp">topo-lsp</a>
+      </div>
+      <p class="footer-license" data-i18n="footer-license">MIT License &copy; 2026 Topo contributors</p>
     </div>
-  </div>
-</section>
+  </footer>
 
-<!-- Footer -->
-<footer>
-  <div class="container">
-    <p>
-      <a href="https://github.com/Topo-lang">GitHub</a>
-      <span class="sep">·</span>
-      <a href="https://github.com/Topo-lang/topo-core">topo-core</a>
-      <span class="sep">·</span>
-      <a href="https://github.com/Topo-lang/topo-lang">topo-lang</a>
-      <span class="sep">·</span>
-      <a href="https://github.com/Topo-lang/topo-cli">topo-cli</a>
-    </p>
-    <p style="margin-top:12px">MIT License &copy; 2026 Topo contributors</p>
-    <p style="margin-top:4px"><a href="https://github.com/Topo-lang">github.com/Topo-lang</a></p>
-  </div>
-</footer>
+  <!-- ═══════════════════════════════════════════════════════════
+       Scripts (~50 lines total)
+       ═══════════════════════════════════════════════════════════ -->
+  <script>
+    // ── Theme toggle ──────────────────────────────────────────
+    const html = document.documentElement;
+    const toggle = document.getElementById('theme-toggle');
+    const STORAGE_KEY = 'topo-theme';
 
+    function applyTheme(theme) {
+      html.setAttribute('data-theme', theme);
+      try { localStorage.setItem(STORAGE_KEY, theme); } catch(e) {}
+    }
+
+    // Restore saved preference or fall back to OS default
+    const saved = (() => { try { return localStorage.getItem(STORAGE_KEY); } catch(e) { return null; } })();
+    if (saved === 'dark' || saved === 'light') {
+      applyTheme(saved);
+    }
+
+    toggle.addEventListener('click', () => {
+      applyTheme(html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+    });
+
+    // ── Language switching ────────────────────────────────────
+    const I18N = {
+      'nav-github':           { en: 'GitHub', zh: 'GitHub' },
+      'hero-headline':        { en: 'Logic Declarations That Your Compiler Can Enforce', zh: '编译器可强制执行的逻辑声明' },
+      'hero-desc':            { en: 'Topo extracts a program\'s logical structure into explicit <code>.topo</code> declarations — auditable, machine-verifiable contracts that catch violations at compile time and unlock aggressive optimization across five host languages.', zh: 'Topo 将程序的逻辑结构提取为显式的 <code>.topo</code> 声明——可审计、可机器验证的契约，在编译时捕获违规行为，并在五种宿主语言中解锁激进的优化。' },
+      'hero-cta-quick':       { en: 'Quick Start', zh: '快速开始' },
+      'hero-cta-github':      { en: 'View on GitHub', zh: '在 GitHub 上查看' },
+      'badge-build':          { en: 'Build Passing', zh: '构建通过' },
+      'badge-langs':          { en: 'C++ &middot; Rust &middot; Java &middot; Python &middot; TypeScript', zh: 'C++ &middot; Rust &middot; Java &middot; Python &middot; TypeScript' },
+      'badge-license':        { en: 'MIT License', zh: 'MIT 许可证' },
+      'why-label':            { en: 'Why Topo', zh: '为什么选择 Topo' },
+      'why-title':            { en: 'AI-Generated Code Is Outpacing Human Review', zh: 'AI 生成代码的速度远超人工审查' },
+      'why-stat1-num':        { en: '1000+', zh: '1000+' },
+      'why-stat1-label':      { en: 'Lines in a typical pull request', zh: '典型 PR 的代码行数' },
+      'why-stat2-num':        { en: '3', zh: '3' },
+      'why-stat2-label':      { en: 'Unsafe points a reviewer actually needs to check', zh: '审查者真正需要检查的 unsafe 点' },
+      'why-stat3-num':        { en: '100%', zh: '100%' },
+      'why-stat3-label':      { en: 'Machine-verified compliance for everything else', zh: '其余部分由机器验证合规' },
+      'why-desc':             { en: 'In the era of AI code generation, code volume exceeds human review capacity. A single malicious line hidden in a large PR is nearly impossible to find. Topo\'s <code>.topo</code> declarations create an auditable machine-verifiable contract that reduces review to three things: <strong>the declarations</strong>, any <code>external</code> functions, and trust in the checker.', zh: '在 AI 代码生成时代，代码量已超出人工审查能力。隐藏在大 PR 中的一行恶意代码几乎不可能被发现。Topo 的 <code>.topo</code> 声明创建了可审计、可机器验证的契约，将审查缩减为三件事：<strong>声明本身</strong>、任何 <code>external</code> 函数，以及对检查器的信任。' },
+      'overview-label':       { en: 'Overview', zh: '概览' },
+      'overview-title':       { en: 'What is Topo', zh: '什么是 Topo' },
+      'overview-sub':         { en: 'Topo extracts the logical requirements of a program — what\'s public, what must run before what, what can run in parallel — from implicit code patterns into explicit <code>.topo</code> declarations.', zh: 'Topo 将程序的逻辑需求——什么是对外公开的、什么必须先于什么执行、什么可以并行——从隐式的代码模式提取为显式的 <code>.topo</code> 声明。' },
+      'vp1-title':            { en: 'Undeclared Behavior Is Forbidden', zh: '未声明的行为被禁止' },
+      'vp1-desc':             { en: 'Non-<code>external</code> functions cannot access I/O, networking, or process capabilities. Violations are compile-time errors, not warnings buried in a log.', zh: '非 <code>external</code> 函数无法访问 I/O、网络或进程能力。违规是编译时错误，而非埋藏在日志中的警告。' },
+      'vp2-title':            { en: 'Declarations Drive Optimization', zh: '声明驱动优化' },
+      'vp2-desc':             { en: 'Explicit stage ordering, parallelism, and visibility give the compiler information beyond what traditional static analysis can derive — enabling inlining, reordering, and auto-parallelization.', zh: '显式的阶段排序、并行性和可见性为编译器提供了传统静态分析无法获得的信息——使内联、重排序和自动并行化成为可能。' },
+      'vp3-title':            { en: 'Review the Declarations, Not the Diff', zh: '审查声明，而非整个 diff' },
+      'vp3-desc':             { en: 'A 1000-line PR might have 3 unsafe points marked <code>external</code>. Reviewers check those and the <code>.topo</code> changes — the rest is machine-verified.', zh: '一个千行 PR 可能只有 3 个标记为 <code>external</code> 的 unsafe 点。审查者只需检查这些和 <code>.topo</code> 变更——其余由机器验证。' },
+      'decl-label':           { en: 'Declaration Types', zh: '声明类型' },
+      'decl-title':           { en: 'Three Declaration Classes', zh: '三种声明类别' },
+      'decl-sub':             { en: 'Every <code>.topo</code> declaration falls into one of three classes. Together they describe the full logical structure of a program.', zh: '每个 <code>.topo</code> 声明属于三种类别之一。它们共同描述程序的完整逻辑结构。' },
+      'decl1-label':          { en: 'Boundary', zh: '边界' },
+      'decl1-title':          { en: 'Existence Boundary', zh: '存在边界' },
+      'decl1-desc':           { en: 'Which symbols are public API, which are implementation detail, and which are internal to a stage. Enables visibility verification, dead code elimination, and symbol obfuscation.', zh: '哪些符号是公开 API，哪些是实现细节，哪些是阶段内部使用的。实现可见性验证、死代码消除和符号混淆。' },
+      'decl2-label':          { en: 'Order', zh: '排序' },
+      'decl2-title':          { en: 'Logic Ordering', zh: '逻辑排序' },
+      'decl2-desc':           { en: 'Which operations must precede which via <code>stage&lt;N&gt;</code> annotation. Enables stage-isolation verification and safe instruction reordering across stage boundaries.', zh: '通过 <code>stage&lt;N&gt;</code> 标注指定哪些操作必须先于哪些。实现阶段隔离验证和跨阶段边界的安全指令重排序。' },
+      'decl3-label':          { en: 'Parallel', zh: '并行' },
+      'decl3-title':          { en: 'Logic Parallelism', zh: '逻辑并行性' },
+      'decl3-desc':           { en: 'Which operations are independent at the same stage. Functions at identical stage numbers form a pipeline DAG, enabling automatic parallelization and concurrent code generation.', zh: '哪些操作在同一阶段中彼此独立。相同阶段编号的函数形成流水线 DAG，实现自动并行化和并发代码生成。' },
+      'demo-label':           { en: 'Demo', zh: '演示' },
+      'demo-title':           { en: 'See It in Action', zh: '查看实际效果' },
+      'demo-sub':             { en: 'Left: a <code>.topo</code> declaration file for an order-processing pipeline. Right: what <code>topo-check</code> reports when the host code violates it.', zh: '左：订单处理流水线的 <code>.topo</code> 声明文件。右：当宿主代码违反声明时 <code>topo-check</code> 的输出。' },
+      'demo-label-decl':      { en: '.topo declaration', zh: '.topo 声明' },
+      'demo-label-output':    { en: 'topo-check output', zh: 'topo-check 输出' },
+      'arch-label':           { en: 'Architecture', zh: '架构' },
+      'arch-title':           { en: 'One Declaration Language, Five Host Languages, Three Backends', zh: '一种声明语言，五种宿主语言，三个后端' },
+      'arch-core':            { en: 'topo-core — Parse, Analyze, Check', zh: 'topo-core — 解析、分析、检查' },
+      'arch-llvm-title':      { en: 'LLVM Backend', zh: 'LLVM 后端' },
+      'arch-llvm-desc':       { en: 'IR optimization passes for C++ and Rust. C-ABI runtime with JIT engine. 41 benchmarks.', zh: '面向 C++ 和 Rust 的 IR 优化 pass。C-ABI 运行时和 JIT 引擎。41 个基准测试。' },
+      'arch-jvm-title':       { en: 'JVM Backend', zh: 'JVM 后端' },
+      'arch-jvm-desc':        { en: 'ASM bytecode transformation passes for Java. Gradle integration with decompile support.', zh: '面向 Java 的 ASM 字节码转换 pass。Gradle 集成和反编译支持。' },
+      'arch-v8-title':        { en: 'V8 Backend', zh: 'V8 后端' },
+      'arch-v8-desc':         { en: 'tsserver bridge for TypeScript semantic analysis. Correctness-preserving source rewrites.', zh: '面向 TypeScript 语义分析的 tsserver 桥接。保正性的源码重写。' },
+      'qs-label':             { en: 'Get Started', zh: '快速开始' },
+      'qs-title':             { en: 'Quick Start', zh: '快速开始' },
+      'qs-sub':               { en: 'Three steps from zero to verified build. Works with C++, Rust, Java, Python, and TypeScript.', zh: '从零到验证构建只需三步。支持 C++、Rust、Java、Python 和 TypeScript。' },
+      'qs-step1-title':       { en: 'Write Declarations', zh: '编写声明' },
+      'qs-step1-desc':        { en: 'Create a <code>.topo</code> file describing your program\'s logical structure.', zh: '创建描述程序逻辑结构的 <code>.topo</code> 文件。' },
+      'qs-step2-title':       { en: 'Configure', zh: '配置' },
+      'qs-step2-desc':        { en: 'Create a <code>Topo.toml</code> to tell the toolchain about your project.', zh: '创建 <code>Topo.toml</code> 来告诉工具链你的项目信息。' },
+      'qs-step3-title':       { en: 'Check and Build', zh: '检查并构建' },
+      'qs-step3-desc':        { en: 'Run the checker, then build with optimization informed by your declarations.', zh: '运行检查器，然后根据声明信息进行优化构建。' },
+      'qs-prereqs':           { en: 'Requires CMake 3.20+, Ninja, and vcpkg. LLVM is auto-managed by the build system.', zh: '需要 CMake 3.20+、Ninja 和 vcpkg。LLVM 由构建系统自动管理。' },
+      'lang-label':           { en: 'Languages', zh: '语言' },
+      'lang-title':           { en: 'Supported Languages', zh: '支持的语言' },
+      'lang-sub':             { en: 'Per-language SDKs with analysis, transpilation, and LSP support. Each language gets <code>check</code>; optimization depth varies by backend.', zh: '每种语言的 SDK 包含分析、转译和 LSP 支持。每种语言都获得 <code>check</code>；优化深度因后端而异。' },
+      'safety-label':         { en: 'Safety', zh: '安全' },
+      'safety-title':         { en: 'Three-Layer Safety Verification', zh: '三层安全验证' },
+      'safety-sub':           { en: 'Every host language gets <code>check</code>. Each layer catches a different class of violation.', zh: '每种宿主语言都获得 <code>check</code>。每一层捕获不同类别的违规。' },
+      'safety-l1-title':      { en: 'Regex Scanning', zh: '正则扫描' },
+      'safety-l1-desc':       { en: 'Pattern-based detection of direct API calls, I/O operations, and escape patterns. Runs on any host language with zero dependencies — no toolchain SDK required.', zh: '基于模式的检测：直接 API 调用、I/O 操作和逃逸模式。零依赖运行在任何宿主语言上——无需工具链 SDK。' },
+      'safety-l2-title':      { en: 'Semantic Analysis', zh: '语义分析' },
+      'safety-l2-desc':       { en: 'Resolved-symbol analysis through LSP bridges (clangd, rust-analyzer, tsserver, jdt). Catches indirect capability use, macro expansion, and template-instantiated violations.', zh: '通过 LSP 桥接（clangd、rust-analyzer、tsserver、jdt）进行符号解析分析。捕获间接能力使用、宏展开和模板实例化违规。' },
+      'safety-l3-title':      { en: 'Post-Transform Verification', zh: '变换后验证' },
+      'safety-l3-desc':       { en: 'Linkage and visibility re-verification after backend optimization passes. Ensures that transforms preserved the declaration contract through every pipeline stage.', zh: '后端优化 pass 后重新验证链接和可见性。确保变换在每个流水线阶段都保持了声明契约。' },
+      'opt-label':            { en: 'Optimization', zh: '优化' },
+      'opt-title':            { en: 'Measured Optimization Impact', zh: '实测优化效果' },
+      'opt-sub':              { en: 'The same <code>.topo</code> declarations that power <code>check</code> tell the compiler what\'s safe to transform. Results from Topo\'s 55-benchmark suite (Apple M1, forced-mode on friendly workloads).', zh: '驱动 <code>check</code> 的同一份 <code>.topo</code> 声明也告诉编译器哪些变换是安全的。数据来自 Topo 的 55 项基准测试套件（Apple M1，强制模式，友好工作负载）。' },
+      'opt-stat1-num':        { en: '3.3&times;', zh: '3.3&times;' },
+      'opt-stat1-title':      { en: 'JVM Auto-Parallelization', zh: 'JVM 自动并行化' },
+      'opt-stat1-desc':       { en: 'Same-stage functions proven independent by <code>.topo</code> pipeline DAG. Backend emits concurrent bytecode with lock elision — safety guaranteed by the declaration, not by runtime checks.', zh: '同阶段函数由 <code>.topo</code> 流水线 DAG 证明彼此独立。后端生成并发字节码并消除锁——安全性由声明保证，而非运行时检查。' },
+      'opt-stat2-num':        { en: '2.1&times;', zh: '2.1&times;' },
+      'opt-stat2-title':      { en: 'LLVM Data-Layout Transform', zh: 'LLVM 数据布局变换' },
+      'opt-stat2-desc':       { en: 'Visibility and stage ordering prove strided access patterns. Compiler switches struct-of-arrays to array-of-structs layout — streaming workloads benefit from contiguous memory access.', zh: '可见性和阶段排序证明了跨步访问模式。编译器将结构体数组切换为数组结构体布局——流式工作负载受益于连续内存访问。' },
+      'opt-stat3-num':        { en: '1.9&times;', zh: '1.9&times;' },
+      'opt-stat3-title':      { en: 'LLVM Arena Allocation', zh: 'LLVM Arena 分配' },
+      'opt-stat3-desc':       { en: 'Visibility declarations prove bounded object lifetime. Compiler replaces heap allocation with arena — no malloc/free, no GC pressure, cache-warm reuse within the declared scope.', zh: '可见性声明证明了对象生命周期的有界性。编译器将堆分配替换为 arena——无 malloc/free、无 GC 压力、在声明范围内缓存热重用。' },
+      'pos-label':            { en: 'Positioning', zh: '定位' },
+      'pos-title':            { en: 'Where Topo Fits', zh: 'Topo 的定位' },
+      'pos-summary':          { en: 'Topo is not a linter. It\'s not a type system. It\'s a <strong>declaration layer</strong> that sits above your code — checked and enforced by the toolchain, consumed by the optimizer, and readable by anyone on the team.', zh: 'Topo 不是 linter，不是类型系统。它是一个<strong>声明层</strong>，位于代码之上——由工具链检查和强制执行，被优化器消费，并且团队中任何人都能读懂。' },
+      'res-label':            { en: 'Resources', zh: '资源' },
+      'res-title':            { en: 'Community &amp; Resources', zh: '社区与资源' },
+      'res-gh-org':           { en: 'GitHub Organization', zh: 'GitHub 组织' },
+      'res-gh-org-desc':      { en: 'All 13 public repositories', zh: '全部 13 个公开仓库' },
+      'res-core':             { en: 'topo-core', zh: 'topo-core' },
+      'res-core-desc':        { en: 'Language core and specification tests', zh: '语言核心和规范测试' },
+      'res-cli':              { en: 'topo-cli', zh: 'topo-cli' },
+      'res-cli-desc':         { en: 'CLI tools and dispatchers', zh: 'CLI 工具和调度器' },
+      'res-lang':             { en: 'topo-lang', zh: 'topo-lang' },
+      'res-lang-desc':        { en: 'Plugin framework and registry', zh: '插件框架和注册表' },
+      'res-llvm':             { en: 'topo-llvm', zh: 'topo-llvm' },
+      'res-llvm-desc':        { en: 'LLVM optimization backend', zh: 'LLVM 优化后端' },
+      'res-cpp':              { en: 'topo-lang-cpp', zh: 'topo-lang-cpp' },
+      'res-cpp-desc':         { en: 'C++ SDK and examples', zh: 'C++ SDK 和示例' },
+      'footer-license':       { en: 'MIT License © 2026 Topo contributors', zh: 'MIT 许可证 © 2026 Topo 贡献者' },
+    };
+
+    const langToggle = document.getElementById('lang-toggle');
+    const LANG_KEY = 'topo-lang';
+
+    function getLang() {
+      try { return localStorage.getItem(LANG_KEY) || 'en'; } catch(e) { return 'en'; }
+    }
+
+    function setLang(lang) {
+      try { localStorage.setItem(LANG_KEY, lang); } catch(e) {}
+      langToggle.textContent = lang === 'zh' ? 'EN' : '中';
+      // Plain text elements
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (I18N[key] && I18N[key][lang]) {
+          el.textContent = I18N[key][lang];
+        }
+      });
+      // HTML elements
+      document.querySelectorAll('[data-i18n-html]').forEach(el => {
+        const key = el.getAttribute('data-i18n-html');
+        if (I18N[key] && I18N[key][lang]) {
+          el.innerHTML = I18N[key][lang];
+        }
+      });
+      html.setAttribute('lang', lang === 'zh' ? 'zh-CN' : 'en');
+    }
+
+    // Restore saved language
+    setLang(getLang());
+
+    langToggle.addEventListener('click', () => {
+      setLang(getLang() === 'zh' ? 'en' : 'zh');
+    });
+
+    // ── Scroll reveal ─────────────────────────────────────────
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('reveal');
+            entry.target.classList.remove('reveal-hidden');
+          }
+        });
+      }, { threshold: 0.12, rootMargin: '0px 0px -30px 0px' });
+
+      document.querySelectorAll('section').forEach(s => {
+        s.classList.add('reveal-hidden');
+        observer.observe(s);
+      });
+    }
+
+  </script>
 </body>
 </html>
